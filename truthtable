@@ -1,0 +1,667 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+
+//#########################//
+// Assignment 4: Circuits And Logic
+// Keshav Subramaniyam
+// Date: November 26th, 2021
+//###########################//
+
+int nodeCounter =0;
+struct Node {
+    char funcName[100];
+    int var1;
+    int var2;
+    int var3;
+    int inArray[10000];
+    int outArray[10000];
+    struct Node* next;
+};
+
+struct Node* head;
+struct Node* tail;
+struct Node* orderHead;
+char variableNames[10000][20];
+char variableValues[10000];
+int inputArrayCount;
+int outputArrayCount;
+
+
+void initializeArray(int *array) {
+    for(int i = 0; i < sizeof(array); i++) {
+        variableValues[i] = 0;
+    }
+}
+
+void decimalToBinaryRows( int rowNumber ) {
+    int value = rowNumber;
+    for(int i=0; value>0; i++) {    
+        variableValues[inputArrayCount-1-i]=value%2;    
+        value = value/2;    
+    }  
+}
+
+int myPower(int x, int y) {
+    int result = 1;
+    for(int i = 0; i < y; i++) {
+        result *= x;
+    }
+    return result;
+}
+
+int decodeVariableValue( int ind ) {
+    int value = 0;
+    if( ind == -10 ) {
+        value = 0;
+    } else if( ind == -11 ) {
+        value = 1;
+    } else {
+        value = variableValues[ind];
+    }
+    return value;
+}
+
+void printValues(int i_count, int o_count) {
+ 
+    //for(int i = i_count - 1; i >= 0; i--) {
+    for(int i = 0; i < i_count; i++) {
+        printf("%d ", decodeVariableValue(i));
+    }
+
+    printf("%s", "|");
+
+    for(int j = 0; j < o_count; j++) {
+        printf(" %d", decodeVariableValue(i_count+j));
+    }
+
+    printf("\n");
+}
+
+
+int getVariableIndex( char varStr[20] ) {
+    int varIndex = 10000;
+    if ( strcmp( varStr, "0") == 0 ) {
+        varIndex = -10;
+    } else if ( strcmp( varStr, "1") == 0 ) {
+        varIndex = -11;
+    } else {
+        for(int i = 0; i < 10000; i++) {
+            if(strcmp(variableNames[i], varStr) == 0) {
+                varIndex = i;
+            }
+        }
+    }
+    return varIndex;
+}
+
+int NOT(int i) {
+   if(i == 0) {
+       return 1;
+   } else {
+       return 0;
+   }
+}
+
+int AND(int i1, int i2) {
+
+   if(i1 == 1 && i2 == 1) {
+       return 1;
+   } else {
+       return 0;
+   }
+
+}
+
+int OR(int i1, int i2) {
+
+   if(i1 == 1 || i2 == 1) {
+       return 1;
+   } else {
+       return 0;
+   }
+
+}
+
+int NAND(int i1, int i2) {
+
+   if(i1 == 1 && i2 == 1) {
+       return 0;
+   } else {
+       return 1;
+   }
+
+}
+
+int NOR(int i1, int i2) {
+
+   if(i1 == 0 && i2 == 0) {
+       return 1;
+   } else {
+       return 0;
+   }
+
+}
+
+int XOR(int i1, int i2) {
+
+   bool i1_is_1 = ((i1 == 1) && (i2 == 0));
+   bool i2_is_1 = ((i1 == 0) && (i2 == 1));
+   if(i1_is_1 || i2_is_1) {
+       return 1;
+   } else {
+       return 0;
+   }
+}
+
+
+int PASS(int i) {
+   return i;
+}
+
+void DECODER( struct Node *ptr ) {
+
+    int value = 0;
+    int inCount =  ptr->var1;
+    int power = (int) myPower(2,inCount);
+    for(int i = 0; i < ptr->var1; i++) {
+        int inArrIndex = variableValues[ptr->inArray[i]];
+        value += inArrIndex * (int) (myPower(2, inCount-1-i));
+    }
+    for (int i=0; i < power; i++){
+        if( i == value ){
+            variableValues[ptr->outArray[i]] = 1; 
+        } else {
+            variableValues[ptr->outArray[i]] = 0; 
+        }
+    }
+
+}
+int MULTIPLEXER( struct Node *ptr ) {
+    int value = 0;
+    for(int i = 0; i < ptr->var1; i++) {
+        int inArrIndex = variableValues[ptr->inArray[i]];
+        value += inArrIndex * (int) (myPower(2, ptr->var1-1-i));
+    }
+    return ptr->outArray[value]; 
+}
+
+void printLinkedList() {
+    struct Node *ptr1 = head;
+    printf("--------------Linked List--------\n");
+    while (ptr1 != NULL ) {
+        printf(" >>>>>>>    '%s' : %d : %d : %d ", ptr1->funcName, ptr1->var1, ptr1->var2, ptr1->var3);
+        if( strcmp( ptr1->funcName, "DECODER" ) == 0 || strcmp( ptr1->funcName, "MULTIPLEXER" ) == 0 ) {
+            printf(": InArr>> ");
+            for(int i =0; i < ptr1->var1; i++ ) {
+                printf(" %d", ptr1->inArray[i]);    
+            }
+            printf(" >> outArr>> ");
+            for(int i =0; i < ptr1->var2; i++ ) {
+                printf(" %d", ptr1->outArray[i]);    
+            }
+        }
+        printf("\n");
+        ptr1 = ptr1->next;
+    }
+}
+
+void computeRow() {
+    struct Node *ptr = head;
+    int count = 0;
+
+    while(ptr != NULL) {
+        
+        int inVar1;
+        int inVar2;
+        if ( ptr->var1 == -10 ) { inVar1 = 0; }   
+        else if ( ptr->var1 == -11 ) { inVar1 = 1; } 
+        else { inVar1 = variableValues[ptr->var1];  }  
+        
+        if ( ptr->var2 == -10 ) { inVar2 = 0; }   
+        else if ( ptr->var2 == -11 ) { inVar2 = 1; } 
+        else { inVar2 = variableValues[ptr->var2];  }  
+        
+        if(strcmp( ptr->funcName, "NOT" ) == 0 ) {
+           variableValues[ptr->var2] = NOT( inVar1 );
+        } else if(strcmp( ptr->funcName, "PASS" ) == 0) {
+           variableValues[ptr->var2] = PASS( inVar1 );
+        } else if(strcmp( ptr->funcName, "AND" ) == 0) {
+           variableValues[ptr->var3] = AND(inVar1, inVar2);
+        } else if(strcmp( ptr->funcName, "OR" ) == 0) {
+           variableValues[ptr->var3] = OR(inVar1, inVar2);
+        } else if(strcmp( ptr->funcName, "NAND" ) == 0) {
+           variableValues[ptr->var3] = NAND(inVar1, inVar2);
+        } else if(strcmp( ptr->funcName, "NOR" ) == 0) {
+           variableValues[ptr->var3] = NOR(inVar1, inVar2);
+        } else if(strcmp( ptr->funcName, "XOR" ) == 0) {
+           variableValues[ptr->var3] = XOR(inVar1, inVar2);
+        } else if(strcmp( ptr->funcName, "DECODER" ) == 0) {
+            DECODER( ptr );
+        } else if(strcmp( ptr->funcName, "MULTIPLEXER" ) == 0) {
+            variableValues[ptr->var3] = decodeVariableValue( MULTIPLEXER(ptr) );
+        }
+        // Shift to next pointer
+        ptr = ptr->next;
+        count++;
+    }
+}
+
+void reOrderLinkedList() {
+    char  validNames[10000][20];  
+    for (int i=0; i<10000; i++){ 
+        if ( i < inputArrayCount) {
+            strcpy( validNames[i], variableNames[i]);
+        } else {
+            strcpy(validNames[i], "");
+        }
+    }
+    int a_index = inputArrayCount;
+
+    struct Node *ptr1 = head;
+    struct Node *ptr2 = head;
+    struct Node *orderPtr;
+    int remainingLLCount=0;
+    int ordLLCount = 0;
+    while (ptr1 != NULL ) {
+        remainingLLCount++;
+        ptr1 = ptr1->next;
+    }
+    
+    int iterationCount = 0;
+    int orgLLCount = 0;
+    orgLLCount = remainingLLCount;
+
+   while ( remainingLLCount != 0 && iterationCount <= orgLLCount ){ // && head != NULL ){ 
+     iterationCount++;
+     ptr1 = head;
+     while (ptr1 != NULL ) {
+        if ( strcmp(ptr1->funcName, "NOT")  == 0  || 
+             strcmp(ptr1->funcName, "PASS") == 0  ||
+             strcmp(ptr1->funcName, "AND")  == 0  || 
+             strcmp(ptr1->funcName, "OR")   == 0  || 
+             strcmp(ptr1->funcName, "NAND") == 0  || 
+             strcmp(ptr1->funcName, "NOR")  == 0  || 
+             strcmp(ptr1->funcName, "XOR")  == 0  ) 
+        {
+            int outVarIndex = ptr1->var2;
+            int val1 = ptr1->var1;
+            int val2 = ptr1->var2;
+    
+            int i = 0;
+            for( i=0; i<10000; i++ ){
+                if ( strcmp( variableNames[val1], validNames[i] ) == 0 ){
+                    break;
+                }
+            }          
+            int j = 0;
+            if ( strcmp(ptr1->funcName, "NOT") != 0 && strcmp(ptr1->funcName, "PASS") != 0 ) {
+                for( j=0; j<10000; j++ ){
+                    if ( strcmp( variableNames[val2], validNames[j] ) == 0 ){
+                        break;
+                    }
+                }
+                outVarIndex = ptr1->var3;
+            }
+
+            if ( i < 10000  && j < 10000 ) {  //Valid, add to ordHead
+                if ( orderHead == NULL ) {
+                    orderHead = ptr1;
+                    orderPtr = orderHead;
+                } else{
+                    orderPtr->next = ptr1;
+                    orderPtr = ptr1;
+                }
+                if ( head == ptr1 ){ 
+                    ptr1 = ptr1->next;
+                    head = ptr1; 
+                    ptr2 = ptr1;
+                } else {
+                    ptr1 = ptr1->next;
+                    ptr2->next = ptr1;
+                }
+                orderPtr->next = NULL;
+
+                ordLLCount++;
+                remainingLLCount--;
+
+                int k = 0;
+                for( k=0; k<10000; k++ ){
+                    if ( strcmp( validNames[k], variableNames[ outVarIndex] ) == 0 ){
+                        break;
+                    }
+                }
+                if ( k == 10000 ){
+                    strcpy( validNames[ a_index++ ], variableNames[ outVarIndex ] );
+                }
+            } else { // Invalid, skip Node
+                ptr2 = ptr1;
+                ptr1 = ptr1->next;
+            }
+
+        } else if ( strcmp(ptr1->funcName, "DECODER") == 0      || 
+                    strcmp(ptr1->funcName, "MULTIPLEXER") == 0 ) {
+
+            int validNode = 0;
+            for (int outCt=0; outCt < ptr1->var1 ; outCt++ ){
+                int i = 0;
+                for( i=0; i<10000; i++ ){
+                    if ( strcmp( variableNames[ptr1->inArray[outCt]], validNames[i] ) == 0 ){
+                        break;
+                    }
+                }  
+                if ( i == 10000 ) { validNode = 10000; }        
+            }
+
+            if ( validNode < 10000 ){  //Valid, add to ordHead
+                if ( orderHead == NULL ) {
+                    orderHead = ptr1;
+                    orderPtr = orderHead;
+                } else{
+                    orderPtr->next = ptr1;
+                    orderPtr = ptr1;
+                }
+                if ( head == ptr1 ){ 
+                    ptr1 = ptr1->next;
+                    head = ptr1; 
+                    ptr2 = ptr1;
+                } else {
+                    ptr1 = ptr1->next;
+                    ptr2->next = ptr1;
+                }
+                orderPtr->next = NULL;
+
+                ordLLCount++;
+                remainingLLCount--;
+
+                for (int outCt=0; outCt < (int) myPower(2, orderPtr->var1) ; outCt++ ){
+                    int k = 0;
+                    for( k=0; k<10000; k++ ){
+                        if ( strcmp( validNames[k], variableNames[ orderPtr->outArray[outCt] ] ) == 0 ){
+                            break;
+                        }
+                    }
+                    if ( k == 10000 ){
+                        strcpy( validNames[ a_index++ ], variableNames[ orderPtr->outArray[outCt] ] );
+                    }
+                }
+            } else { // Invalid, skip Node
+                ptr2 = ptr1;
+                ptr1 = ptr1->next;
+            }
+        }
+    }
+  }
+   
+  head = orderHead;
+  //printf("--------LL Stats: Iterations: %d  Original: %d    Reordered: %d \n", iterationCount, orgLLCount, ordLLCount);
+}
+
+int main(int argc, char** argv) {
+
+    char variable1String[1000];
+    char variable2String[1000];
+    char variable3String[1000];
+    int var1Index;
+    int var2Index;
+    int var3Index;
+    int indexParamDecoder;
+    int indexParamMultiplexer;
+    int a_index = 0;
+    int count = 0;
+    char text1[100];
+    // Are the number of arguments 2?
+    if(argc != 2) {
+        printf("The number of arguments that you have typed is unspecified.\n");
+        return 1;
+    }
+
+    // Create a file
+    FILE* circuitFile = fopen(argv[1], "r");
+    if( circuitFile == NULL ) {
+        printf("No such file..\n");
+        return 1;
+    }
+
+    fscanf(circuitFile, "%16s", text1);
+
+    // Read and print "INPUT"
+    while( !feof(circuitFile) ) {
+
+        int inA[10000];
+        int outA[10000];
+        struct Node* newNode;
+        if( strcmp( text1, "INPUT" ) != 0 && strcmp( text1, "OUTPUT" ) != 0 ) {
+            newNode= malloc( sizeof(struct Node) );
+            nodeCounter++;
+            strcpy( newNode->funcName, text1);
+            newNode->next  = NULL;
+        }
+
+       if( strcmp( text1, "INPUT" ) == 0 ) {
+           fscanf(circuitFile, "%d", &inputArrayCount);
+           for(int i = 0; i < inputArrayCount; i++) {
+               char input[1000];
+               fscanf(circuitFile, "%16s", input);
+               if( strcmp( input, "0" ) != 0  &&  strcmp( input, "1" ) != 0 ) {
+                  strcpy(variableNames[a_index], input);
+                  a_index++; 
+               }
+           }  
+       } else if ( strcmp( text1, "OUTPUT" ) == 0 ) {
+           fscanf(circuitFile, "%d", &outputArrayCount);
+           for(int j = 0; j < outputArrayCount; j++) {
+               char output[1000];
+               fscanf(circuitFile, "%16s", output);
+               if( strcmp( output, "_" ) != 0) {
+                  strcpy(variableNames[a_index], output);
+                  a_index++; 
+               }
+            }
+        } else if( strcmp( text1, "NOT" ) == 0 ||
+               strcmp( text1, "AND" )  == 0 ||
+               strcmp( text1, "OR" )   == 0 ||
+               strcmp( text1, "NAND" ) == 0 ||
+               strcmp( text1, "NOR" )  == 0 ||
+               strcmp( text1, "XOR" )  == 0 ||
+               strcmp( text1, "PASS" ) == 0 ) 
+        {
+                fscanf(circuitFile, "%16s", variable1String);
+                if(strcmp(variable1String, "0") == 0) {
+                    var1Index = -10;
+                } else if(strcmp(variable1String, "1") == 0) {
+                    var1Index = -11;
+                } else {
+                    var1Index = getVariableIndex( variable1String );
+                }
+                if(var1Index == 10000) {
+                   var1Index = a_index;
+                   strcpy(variableNames[a_index++], variable1String);
+                }
+                fscanf(circuitFile, "%16s", variable2String);
+                if(strcmp(variable2String, "0") == 0) {
+                    var2Index = -10;
+                } else if(strcmp(variable2String, "1") == 0) {
+                    var2Index = -11;
+                } else {
+                    var2Index = getVariableIndex( variable2String );
+                }
+                if(var2Index == 10000) {
+                  var2Index = a_index;
+                  strcpy(variableNames[a_index++], variable2String);
+                }
+                if(strcmp(text1, "NOT") == 0 || strcmp(text1, "PASS") == 0) {
+                   var3Index = -1;
+                } else {
+                   fscanf(circuitFile, "%16s", variable3String);
+                    if(strcmp(variable3String, "0") == 0) {
+                        var3Index = -10;
+                    } else if(strcmp(variable3String, "1") == 0) {
+                        var3Index = -11;
+                    } else {
+                        var3Index = getVariableIndex( variable3String );
+                    }
+                   if(var3Index == 10000) {
+                      var3Index = a_index;
+                      strcpy(variableNames[a_index++], variable3String);
+                    } 
+                }
+        } else if(strcmp(text1, "DECODER") == 0) {
+                indexParamDecoder = 0;
+                fscanf(circuitFile, "%d", &indexParamDecoder);
+                var1Index = indexParamDecoder;
+                var2Index = (int)(myPower(2, indexParamDecoder));
+                var3Index = 0;
+
+                for(int i = 0; i < indexParamDecoder; i++) {
+                    char input[20];
+                    fscanf(circuitFile, "%16s", input);
+                    int inputIndex = getVariableIndex( input );
+                    if(strcmp(input, "0") == 0) {
+                        inputIndex = -10;
+                    } else if(strcmp(input, "1") == 0) {
+                        inputIndex = -11;
+                    } else {
+                        inputIndex = getVariableIndex( input );
+                    }
+                    if(inputIndex == 10000) {
+                       inputIndex = a_index;
+                       strcpy(variableNames[a_index++], input);
+                    }
+                    inA[i] = inputIndex;
+                }
+                for(int i = 0; i < var2Index; i++) {
+                    char output[20];
+                    fscanf(circuitFile, "%16s", output);
+                    int outputIndex;
+                    if(strcmp(output, "0") == 0) {
+                        outputIndex = -10;
+                    } else if(strcmp(output, "1") == 0) {
+                        outputIndex = -11;
+                    } else {
+                        outputIndex = getVariableIndex( output );
+                    }
+                    if(outputIndex == 10000) {
+                       outputIndex = a_index;
+                       strcpy(variableNames[a_index++], output);
+                    }
+                    outA[i] = outputIndex;
+                }
+        } else if(strcmp(text1, "MULTIPLEXER") == 0) {
+                indexParamMultiplexer = 0;
+                fscanf(circuitFile, "%d", &indexParamMultiplexer);
+                var1Index = indexParamMultiplexer;
+                var2Index = (int)(myPower(2, indexParamMultiplexer));
+
+                for(int i = 0; i < var2Index; i++) {
+                    char output[20];
+                    fscanf(circuitFile, "%16s", output);
+                    int outputIndex = getVariableIndex( output );
+                    if(strcmp(output, "0") == 0) {
+                        outputIndex = -10;
+                    } else if(strcmp(output, "1") == 0) {
+                        outputIndex = -11;
+                    } else {
+                        outputIndex = getVariableIndex( output );
+                    }
+                    if(outputIndex == 10000) {
+                       outputIndex = a_index;
+                       strcpy(variableNames[a_index++], output);
+                    }
+
+                    outA[i] = outputIndex;
+                }
+                for(int i = 0; i < indexParamMultiplexer; i++) {
+                    char input[20];
+                    fscanf(circuitFile, "%16s", input);
+                    int inputIndex = getVariableIndex( input );
+                    if(strcmp(input, "0") == 0) {
+                        inputIndex = -10;
+                    } else if(strcmp(input, "1") == 0) {
+                        inputIndex = -11;
+                    } else {
+                        inputIndex = getVariableIndex( input );
+                    }
+                    if(inputIndex == 10000) {
+                       inputIndex = a_index;
+                       strcpy(variableNames[a_index++], input);
+                    }
+                    inA[i] = inputIndex;
+                }
+                
+                char outVar[20];
+                fscanf(circuitFile, "%16s", outVar);
+                int inputIndex = getVariableIndex( outVar );
+                if(inputIndex == 10000) {
+                    inputIndex = a_index;
+                    strcpy(variableNames[a_index++], outVar);
+                }
+                var3Index = inputIndex;
+        } else {
+                printf("INVALID FILE\n");
+                return 1;
+        }
+
+        if( strcmp( text1, "INPUT" ) != 0 && strcmp( text1, "OUTPUT" ) != 0 ) {
+            newNode->var1 = var1Index;
+            newNode->var2 = var2Index;
+            newNode->var3 = var3Index;
+            for(int i=0; i<10000; i++){
+                newNode->inArray[i] = inA[i];
+                newNode->outArray[i] = outA[i];
+            }
+
+            if(count == 0) {
+                head = newNode;
+                count++;
+            } else {
+                tail->next = newNode;
+            }
+            tail = newNode;
+        }
+        fscanf(circuitFile, "%16s", text1);
+    }
+
+    fclose(circuitFile);
+
+    int truth_table_rows = (int) myPower(2.0, (double) inputArrayCount);
+    int variableValue[10000];
+    initializeArray(variableValue);
+
+    //printf("Old Linked List\n");
+    //printLinkedList();
+    
+    //printf("Reorder The Linked List\n");
+    reOrderLinkedList();
+
+    //printf("New And Final Linked List\n");
+    //printLinkedList();
+
+    for( int i = 0; i < truth_table_rows; i++) {
+        decimalToBinaryRows(i);
+        computeRow();
+        printValues(inputArrayCount, outputArrayCount);
+    }
+    printf("\n");
+
+    
+    struct Node *ptr1 = head;
+    struct Node *ptr2 = head;
+    while (ptr1 != NULL ) {
+        ptr2 = ptr1;
+        ptr1 = ptr1->next;
+        ptr2->next = NULL;
+        free(ptr2);
+        nodeCounter--;
+    }
+
+    head = NULL;
+    ptr1 = NULL;
+    ptr2 = NULL;
+    orderHead = NULL;
+    
+    //printf(">>>> %d  : Nodes: %d\n", (int)sizeof(struct Node), nodeCounter);
+
+    return 0;
+}
